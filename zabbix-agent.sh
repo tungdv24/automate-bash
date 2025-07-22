@@ -1,12 +1,11 @@
 #!/bin/bash
-
 set -e
 
-# Defaults
+# Default values
 ZBX_SERVER="192.168.10.196"
 ZBX_VERSION="7.0"
 
-# Parse arguments
+# Parse command-line arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --server)
@@ -26,6 +25,7 @@ done
 
 echo ">>> Installing Zabbix Agent ${ZBX_VERSION} with Server ${ZBX_SERVER}"
 
+# Detect OS
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS_FAMILY=$ID
@@ -39,8 +39,25 @@ install_agent_ubuntu() {
     apt-get update -y
     apt-get install -y wget gnupg2 lsb-release
 
-    wget https://repo.zabbix.com/zabbix/${ZBX_VERSION}/ubuntu/pool/main/z/zabbix-release/zabbix-release_${ZBX_VERSION}-1+$(lsb_release -cs)_all.deb
-    dpkg -i zabbix-release_${ZBX_VERSION}-1+$(lsb_release -cs)_all.deb
+    # Map Ubuntu codename to Zabbix repo naming
+    case "$(lsb_release -cs)" in
+        focal)
+            UBUNTU_VER="ubuntu20.04"
+            ;;
+        jammy)
+            UBUNTU_VER="ubuntu22.04"
+            ;;
+        noble)
+            UBUNTU_VER="ubuntu24.04"
+            ;;
+        *)
+            echo "Unsupported Ubuntu version: $(lsb_release -cs)"
+            exit 1
+            ;;
+    esac
+
+    wget https://repo.zabbix.com/zabbix/${ZBX_VERSION}/ubuntu/pool/main/z/zabbix-release/zabbix-release_${ZBX_VERSION}-1+${UBUNTU_VER}_all.deb
+    dpkg -i zabbix-release_${ZBX_VERSION}-1+${UBUNTU_VER}_all.deb
     apt-get update -y
     apt-get install -y zabbix-agent2
 }
@@ -48,7 +65,19 @@ install_agent_ubuntu() {
 install_agent_centos() {
     echo ">>> Installing Zabbix Agent on CentOS/RHEL"
     yum install -y wget
-    rpm -Uvh https://repo.zabbix.com/zabbix/${ZBX_VERSION}/rhel/$(rpm -E %{rhel})/x86_64/zabbix-release-${ZBX_VERSION}-1.el$(rpm -E %{rhel}).noarch.rpm
+
+    RHEL_MAJOR=$(rpm -E %{rhel})
+
+    case "$RHEL_MAJOR" in
+        7|8|9)
+            ;;
+        *)
+            echo "Unsupported RHEL major version: $RHEL_MAJOR"
+            exit 1
+            ;;
+    esac
+
+    rpm -Uvh https://repo.zabbix.com/zabbix/${ZBX_VERSION}/rhel/${RHEL_MAJOR}/x86_64/zabbix-release-${ZBX_VERSION}-1.el${RHEL_MAJOR}.noarch.rpm
     yum clean all
     yum install -y zabbix-agent2
 }
@@ -61,8 +90,8 @@ configure_agent() {
         exit 1
     fi
 
-    sed -i "s/^Server=.*/Server=$ZBX_SERVER/" $ZBX_CONF
-    sed -i "s/^ServerActive=.*/ServerActive=$ZBX_SERVER/" $ZBX_CONF
+    sed -i "s/^Server=.*/Server=$ZBX_SERVER/" "$ZBX_CONF"
+    sed -i "s/^ServerActive=.*/ServerActive=$ZBX_SERVER/" "$ZBX_CONF"
 }
 
 start_agent() {
@@ -88,4 +117,4 @@ esac
 configure_agent
 start_agent
 
-echo ">>> Zabbix Agent v${ZBX_VERSION} installation and configuration completed successfully."
+echo ">>> ✅ Zabbix Agent v${ZBX_VERSION} installation and configuration completed successfully."
