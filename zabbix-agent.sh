@@ -4,6 +4,7 @@ set -e
 # Default values
 ZBX_SERVER="192.168.10.196"
 ZBX_VERSION="7.0"
+ZBX_AGENT="1"  # default to agent1
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -16,14 +17,18 @@ while [[ $# -gt 0 ]]; do
             ZBX_VERSION="$2"
             shift 2
             ;;
+        --ver)
+            ZBX_AGENT="$2"
+            shift 2
+            ;;
         *)
-            echo "Usage: $0 [--server <zabbix_server_ip>] [--version <zabbix_version>]"
+            echo "Usage: $0 [--server <zabbix_server_ip>] [--version <zabbix_version>] [--ver <1|2>]"
             exit 1
             ;;
     esac
 done
 
-echo ">>> Installing Zabbix Agent ${ZBX_VERSION} with Server ${ZBX_SERVER}"
+echo ">>> Installing Zabbix Agent${ZBX_AGENT} ${ZBX_VERSION} with Server ${ZBX_SERVER}"
 
 # Detect OS
 if [ -f /etc/os-release ]; then
@@ -59,7 +64,12 @@ install_agent_ubuntu() {
     wget https://repo.zabbix.com/zabbix/${ZBX_VERSION}/ubuntu/pool/main/z/zabbix-release/zabbix-release_${ZBX_VERSION}-1+${UBUNTU_VER}_all.deb
     dpkg -i zabbix-release_${ZBX_VERSION}-1+${UBUNTU_VER}_all.deb
     apt-get update -y
-    apt-get install -y zabbix-agent2
+
+    if [ "$ZBX_AGENT" = "2" ]; then
+        apt-get install -y zabbix-agent2
+    else
+        apt-get install -y zabbix-agent
+    fi
 }
 
 install_agent_centos() {
@@ -69,7 +79,7 @@ install_agent_centos() {
     RHEL_MAJOR=$(rpm -E %{rhel})
 
     case "$RHEL_MAJOR" in
-        7|8|9)
+        8|9|10)
             ;;
         *)
             echo "Unsupported RHEL major version: $RHEL_MAJOR"
@@ -79,12 +89,22 @@ install_agent_centos() {
 
     rpm -Uvh https://repo.zabbix.com/zabbix/${ZBX_VERSION}/rhel/${RHEL_MAJOR}/x86_64/zabbix-release-${ZBX_VERSION}-1.el${RHEL_MAJOR}.noarch.rpm
     yum clean all
-    yum install -y zabbix-agent2
+
+    if [ "$ZBX_AGENT" = "2" ]; then
+        yum install -y zabbix-agent2
+    else
+        yum install -y zabbix-agent
+    fi
 }
 
 configure_agent() {
     echo ">>> Configuring Zabbix Agent"
-    ZBX_CONF="/etc/zabbix/zabbix_agent2.conf"
+    if [ "$ZBX_AGENT" = "2" ]; then
+        ZBX_CONF="/etc/zabbix/zabbix_agent2.conf"
+    else
+        ZBX_CONF="/etc/zabbix/zabbix_agentd.conf"
+    fi
+
     if [ ! -f "$ZBX_CONF" ]; then
         echo "Zabbix Agent config not found!"
         exit 1
@@ -96,9 +116,15 @@ configure_agent() {
 
 start_agent() {
     echo ">>> Enabling and restarting Zabbix Agent"
-    systemctl enable zabbix-agent2
-    systemctl restart zabbix-agent2
-    systemctl status zabbix-agent2 --no-pager
+    if [ "$ZBX_AGENT" = "2" ]; then
+        systemctl enable zabbix-agent2
+        systemctl restart zabbix-agent2
+        systemctl status zabbix-agent2 --no-pager
+    else
+        systemctl enable zabbix-agent
+        systemctl restart zabbix-agent
+        systemctl status zabbix-agent --no-pager
+    fi
 }
 
 case "$OS_FAMILY" in
@@ -117,4 +143,4 @@ esac
 configure_agent
 start_agent
 
-echo ">>> ✅ Zabbix Agent v${ZBX_VERSION} installation and configuration completed successfully."
+echo ">>> ✅ Zabbix Agent${ZBX_AGENT} v${ZBX_VERSION} installation and configuration completed successfully."
