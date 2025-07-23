@@ -72,5 +72,3 @@ fi
 
 echo "[✓] User $USERNAME created and configured successfully!"
 
-echo "[*] Removing script itself: $0"
-rm -- "$0"
