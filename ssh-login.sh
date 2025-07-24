@@ -13,7 +13,7 @@ date="$(date "+%T_%F")"
 output_file="/usr/local/sbin/file.txt"
 
 # IP Whitelist
-whitelist=("60.191.67.90" "103.53.170.145" "113.190.242.72" "118.70.144.69" "103.53.170.132")
+whitelist=("103.53.170.145" "113.190.242.72" "118.70.144.69" "103.53.170.132")
 
 # Check if PAM_RHOST is in the whitelist
 if [[ " ${whitelist[@]} " =~ " ${PAM_RHOST} " ]]; then
