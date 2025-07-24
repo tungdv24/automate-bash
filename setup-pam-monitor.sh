@@ -11,7 +11,14 @@ CHAT_ID="$2"
 THREAD_ID="$3"
 
 SCRIPT_URL="https://raw.githubusercontent.com/tungdv24/automate-bash/main/ssh-login.sh"
-DEST_SCRIPT="/etc/pam.script"
+DEST_DIR="/etc/pam.script"
+DEST_SCRIPT="$DEST_DIR/ssh-login.sh"
+
+# === Create destination directory if it doesn't exist ===
+if [[ ! -d "$DEST_DIR" ]]; then
+    mkdir -p "$DEST_DIR"
+    echo "✅ Created directory: $DEST_DIR"
+fi
 
 # === Download script and configure it ===
 curl -fsSL "$SCRIPT_URL" -o "$DEST_SCRIPT"
@@ -34,7 +41,7 @@ chmod +x "$DEST_SCRIPT"
 
 # === PAM SSHD setup ===
 PAM_FILE="/etc/pam.d/sshd"
-LINE_TO_ADD="session optional pam_exec.so /etc/pam.script"
+LINE_TO_ADD="session required pam_exec.so $DEST_SCRIPT"
 
 if ! grep -Fxq "$LINE_TO_ADD" "$PAM_FILE"; then
     echo "$LINE_TO_ADD" >> "$PAM_FILE"
