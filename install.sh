@@ -9,7 +9,8 @@ while true; do
   echo "2) Add SSH monitor alert"
   echo "3) Install Zabbix Agent"
   echo "4) Install Zabbix Config"
-  echo "5) Exit"
+  echo "5) Extend Disk"
+  echo "6) Exit"
   echo "============================"
   read -p "Enter your choice: " choice
 
@@ -80,6 +81,13 @@ while true; do
       read -p "✅ Zabbix Config installed. Press ENTER to continue..."
       ;;
     5)
+      echo -e "\nExtending disk...\n"
+      extend_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/extend-disk.sh | sudo bash"
+      echo -e "Executing:\n$extend_cmd\n"
+      eval $extend_cmd
+      read -p "✅ Disk extension complete. Press ENTER to continue..."
+      ;;
+    6)
       echo "Bye!"
       exit 0
       ;;
