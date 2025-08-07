@@ -41,8 +41,16 @@ echo "$PUBKEY" > "$USER_HOME/.ssh/authorized_keys"
 chmod 600 "$USER_HOME/.ssh/authorized_keys"
 chown -R "$USERNAME:$USERNAME" "$USER_HOME/.ssh"
 
-echo "[*] Adding user to sudo group"
-usermod -aG sudo "$USERNAME"
+# Detect and add to the correct sudo group
+if getent group sudo &>/dev/null; then
+    echo "[*] Adding user to sudo group"
+    usermod -aG sudo "$USERNAME"
+elif getent group wheel &>/dev/null; then
+    echo "[*] Adding user to wheel group"
+    usermod -aG wheel "$USERNAME"
+else
+    echo "[!] No known sudo-capable group (sudo or wheel) found."
+fi
 
 echo "[*] Configuring passwordless sudo"
 echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$USERNAME"
@@ -71,4 +79,3 @@ else
 fi
 
 echo "[✓] User $USERNAME created and configured successfully!"
-
