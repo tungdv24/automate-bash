@@ -14,6 +14,30 @@ SCRIPT_URL="https://raw.githubusercontent.com/tungdv24/automate-bash/main/ssh-lo
 DEST_DIR="/etc/pam.script"
 DEST_SCRIPT="$DEST_DIR/ssh-login.sh"
 
+# === Detect SELinux on CentOS/RHEL and abort if not disabled ===
+if [[ -f /etc/centos-release || -f /etc/redhat-release ]]; then
+    SELINUX_STATUS=$(getenforce 2>/dev/null || echo "Disabled")
+    CONFIG_FILE="/etc/selinux/config"
+
+    if [[ "$SELINUX_STATUS" != "Disabled" ]]; then
+        echo "❌ SELinux is currently set to: $SELINUX_STATUS"
+        echo "   ➤ Please disable SELinux before running this script."
+        echo "   ➤ You can do this by editing $CONFIG_FILE and setting:"
+        echo "         SELINUX=disabled"
+        echo "   ➤ Then reboot the system."
+        exit 3
+    fi
+
+    if grep -q '^SELINUX=' "$CONFIG_FILE"; then
+        CONFIG_VALUE=$(grep '^SELINUX=' "$CONFIG_FILE" | cut -d= -f2)
+        if [[ "$CONFIG_VALUE" != "disabled" ]]; then
+            echo "❌ SELinux config is set to: $CONFIG_VALUE"
+            echo "   ➤ Please update $CONFIG_FILE to set SELINUX=disabled and reboot."
+            exit 4
+        fi
+    fi
+fi
+
 # === Create destination directory if it doesn't exist ===
 if [[ ! -d "$DEST_DIR" ]]; then
     mkdir -p "$DEST_DIR"
