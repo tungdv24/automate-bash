@@ -35,13 +35,39 @@ if [ -f /etc/os-release ]; then
     . /etc/os-release
     OS_FAMILY=$ID
 else
-    echo "Cannot detect OS"
+    echo "❌ Cannot detect OS"
     exit 1
 fi
 
+check_selinux_disabled() {
+    if command -v getenforce &>/dev/null; then
+        ENFORCE_STATUS=$(getenforce)
+        if [[ "$ENFORCE_STATUS" != "Disabled" ]]; then
+            echo "❌ SELinux is $ENFORCE_STATUS. Please disable it before continuing."
+            exit 1
+        fi
+    fi
+}
+
+check_package_manager_update() {
+    if [[ "$OS_FAMILY" =~ (ubuntu|debian) ]]; then
+        echo ">>> Checking apt-get update..."
+        if ! apt-get update -y; then
+            echo "❌ apt-get update failed. Please check your internet connection or repository settings."
+            exit 1
+        fi
+    elif [[ "$OS_FAMILY" =~ (centos|rhel|rocky|almalinux) ]]; then
+        echo ">>> Checking yum update..."
+        if ! yum -y update --nobest >/dev/null 2>&1; then
+            echo "❌ yum update failed. Please check your internet connection or repository settings."
+            exit 1
+        fi
+    fi
+}
+
 install_agent_ubuntu() {
     echo ">>> Installing Zabbix Agent on Ubuntu/Debian"
-    apt-get update -y
+
     apt-get install -y wget gnupg2 lsb-release
 
     # Map Ubuntu codename to Zabbix repo naming
@@ -56,7 +82,7 @@ install_agent_ubuntu() {
             UBUNTU_VER="ubuntu24.04"
             ;;
         *)
-            echo "Unsupported Ubuntu version: $(lsb_release -cs)"
+            echo "❌ Unsupported Ubuntu version: $(lsb_release -cs)"
             exit 1
             ;;
     esac
@@ -74,6 +100,7 @@ install_agent_ubuntu() {
 
 install_agent_centos() {
     echo ">>> Installing Zabbix Agent on CentOS/RHEL"
+
     yum install -y wget
 
     RHEL_MAJOR=$(rpm -E %{rhel})
@@ -82,7 +109,7 @@ install_agent_centos() {
         8|9|10)
             ;;
         *)
-            echo "Unsupported RHEL major version: $RHEL_MAJOR"
+            echo "❌ Unsupported RHEL major version: $RHEL_MAJOR"
             exit 1
             ;;
     esac
@@ -106,7 +133,7 @@ configure_agent() {
     fi
 
     if [ ! -f "$ZBX_CONF" ]; then
-        echo "Zabbix Agent config not found!"
+        echo "❌ Zabbix Agent config not found!"
         exit 1
     fi
 
@@ -127,15 +154,19 @@ start_agent() {
     fi
 }
 
+# === Run steps ===
+check_package_manager_update
+
 case "$OS_FAMILY" in
     ubuntu|debian)
         install_agent_ubuntu
         ;;
     centos|rhel|rocky|almalinux)
+        check_selinux_disabled
         install_agent_centos
         ;;
     *)
-        echo "Unsupported OS: $OS_FAMILY"
+        echo "❌ Unsupported OS: $OS_FAMILY"
         exit 1
         ;;
 esac
@@ -143,4 +174,4 @@ esac
 configure_agent
 start_agent
 
-echo ">>> ✅ Zabbix Agent${ZBX_AGENT} v${ZBX_VERSION} installation and configuration completed successfully."
+echo "✅ Zabbix Agent${ZBX_AGENT} v${ZBX_VERSION} installation and configuration completed successfully."
