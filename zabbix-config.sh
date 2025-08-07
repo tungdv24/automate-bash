@@ -3,6 +3,22 @@
 # Exit on any error
 set -e
 
+# Function to detect Zabbix Agent version
+detect_zabbix_agent() {
+    if systemctl list-units --type=service | grep -q "^zabbix-agent2.service"; then
+        echo "❌ Detected Zabbix Agent 2. This script is only for Zabbix Agent 1."
+        exit 1
+    elif systemctl list-units --type=service | grep -q "^zabbix-agent.service"; then
+        echo "✅ Detected Zabbix Agent 1. Proceeding..."
+    else
+        echo "❌ No Zabbix Agent service found. Exiting."
+        exit 1
+    fi
+}
+
+# Run detection
+detect_zabbix_agent
+
 # Define temp working directory
 TMP_DIR="/tmp/zabbix-configs"
 REPO_URL="https://github.com/tungdv24/Ansible.git"
@@ -33,6 +49,7 @@ cp -a "$TMP_DIR/$SCRIPTS_SRC/." "$SCRIPTS_DST/"
 echo "📂 Copying agent configs to $CONF_DST..."
 cp -a "$TMP_DIR/$CONF_SRC/." "$CONF_DST/"
 
+# Clean up
 rm -rf "$TMP_DIR"
 
 # Restart Zabbix Agent
@@ -44,4 +61,3 @@ else
     systemctl status zabbix-agent
     exit 1
 fi
-
