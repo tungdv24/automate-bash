@@ -10,7 +10,8 @@ while true; do
   echo "3) Install Zabbix Agent"
   echo "4) Install Zabbix Config"
   echo "5) Extend Disk"
-  echo "6) Exit"
+  echo "6) Firewall manager"
+  echo "7) Exit"
   echo "============================"
   read -p "Enter your choice: " choice
 
@@ -88,6 +89,12 @@ while true; do
       read -p "✅ Disk extension complete. Press ENTER to continue..."
       ;;
     6)
+      extend_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/firewall.sh | sudo bash"
+      echo -e "Executing:\n$extend_cmd\n"
+      eval $extend_cmd
+      read -p "✅ Firewall configuration completed. Press ENTER to continue..."
+      ;;
+    7)
       echo "Bye!"
       exit 0
       ;;
