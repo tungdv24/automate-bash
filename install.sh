@@ -89,7 +89,7 @@ while true; do
       read -p "✅ Disk extension complete. Press ENTER to continue..."
       ;;
     6)
-      extend_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/firewall.sh | sudo bash"
+      extend_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/firewall.sh)"
       echo -e "Executing:\n$extend_cmd\n"
       eval $extend_cmd
       read -p "✅ Firewall configuration completed. Press ENTER to continue..."
