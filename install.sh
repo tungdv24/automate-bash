@@ -3,7 +3,7 @@
 while true; do
   clear
   echo "============================"
-  echo " Auto Admin Script v1.0"
+  echo " Auto Admin Script v2.4 "
   echo "============================"
   echo "1) Add sudo user with SSH key"
   echo "2) Add SSH monitor alert"
@@ -11,7 +11,9 @@ while true; do
   echo "4) Install Zabbix Config"
   echo "5) Extend Disk"
   echo "6) Firewall manager"
-  echo "7) Exit"
+  echo "7) Execute command on multiple servers"
+  echo "8) Sequential SSH sessions"
+  echo "9) Exit"
   echo "============================"
   read -p "Enter your choice: " choice
 
@@ -95,6 +97,20 @@ while true; do
       read -p "✅ Firewall configuration completed. Press ENTER to continue..."
       ;;
     7)
+      echo -e "\nExecuting command on multiple servers...\n"
+      multi_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/execute-cmd.sh)"
+      echo -e "Executing:\n$multi_cmd\n"
+      eval $multi_cmd
+      read -p "✅ Multiple server command execution complete. Press ENTER to continue..."
+      ;;
+    8)
+      echo -e "\nStarting sequential SSH sessions...\n"
+      seq_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/ssh-session.sh)"
+      echo -e "Executing:\n$seq_cmd\n"
+      eval $seq_cmd
+      read -p "✅ Sequential SSH sessions complete. Press ENTER to continue..."
+      ;;
+    9)
       echo "Bye!"
       exit 0
       ;;
