@@ -57,8 +57,13 @@ done
 echo -e "\n[INFO] Enter commands to run on all servers. Press Ctrl+D to exit."
 while true; do
     echo -n "> "
-    if ! read CMD; then
-        break
+    if ! IFS= read -r CMD; then
+        break  # Exit on Ctrl+D
+    fi
+
+    # If empty command, skip instead of breaking
+    if [[ -z "$CMD" ]]; then
+        continue
     fi
 
     for IP in "${CONNECTED_SERVERS[@]}"; do
