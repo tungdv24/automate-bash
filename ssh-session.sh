@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Temporary password file
+clear
+
 PASS_FILE="$(mktemp)"
 trap 'rm -f "$PASS_FILE"' EXIT INT TERM
 

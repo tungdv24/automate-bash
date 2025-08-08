@@ -15,6 +15,9 @@ cleanup() {
 trap cleanup EXIT INT
 
 # Prompt for IPs
+
+clear
+
 read -p "Enter IP addresses (space-separated): " -a IPS
 
 # Prompt for SSH port (default 22)
