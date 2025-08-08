@@ -2,39 +2,39 @@
 
 # Temporary control socket directory (deleted on exit)
 CONTROL_DIR=$(mktemp -d)
-
-# Temp password file
 PASS_FILE=$(mktemp)
 
 # Cleanup on exit
 cleanup() {
+    echo -e "\n[INFO] Cleaning up..."
+    pkill -f "ssh -S $CONTROL_DIR" 2>/dev/null
     rm -f "$PASS_FILE"
     rm -rf "$CONTROL_DIR"
-    echo -e "\n[INFO] Cleaned up temporary files and closed connections."
+    echo "[INFO] Closed connections and removed temporary files."
 }
-trap cleanup EXIT INT
+trap cleanup EXIT
+
+# Interrupt handler
+interrupt() {
+    echo -e "\n[INFO] Caught Ctrl+C, stopping immediately..."
+    cleanup
+    exit 130
+}
+trap interrupt SIGINT
 
 # Prompt for IPs
-
 clear
-
 read -p "Enter IP addresses (space-separated): " -a IPS
-
-# Prompt for SSH port (default 22)
 read -p "Enter SSH port (default 22): " PORT
 PORT=${PORT:-22}
-
-# Prompt for username
 read -p "Enter SSH username: " USER
-
-# Prompt for password (optional for key auth)
 read -s -p "Enter SSH password (leave blank for key auth): " PASS
 echo
 if [[ -n "$PASS" ]]; then
     echo "$PASS" > "$PASS_FILE"
 fi
 
-# Connect to all servers and open control sockets
+# Connect to all servers
 CONNECTED_SERVERS=()
 for IP in "${IPS[@]}"; do
     echo "[INFO] Connecting to $IP..."
@@ -54,25 +54,14 @@ for IP in "${CONNECTED_SERVERS[@]}"; do
 done
 
 # Interactive command execution
-trap 'echo -e "\n[INFO] Exiting..."; break_loop=true' SIGINT
-
 echo -e "\n[INFO] Enter commands to run on all servers. Press Ctrl+C or Ctrl+D to exit."
-break_loop=false
 
 while true; do
-    if [[ "$break_loop" == true ]]; then
-        break
-    fi
-
     echo -n "> "
     if ! IFS= read -r CMD; then
-        break  # Exit on Ctrl+D
+        break
     fi
-
-    # If empty command, skip instead of breaking
-    if [[ -z "$CMD" ]]; then
-        continue
-    fi
+    [[ -z "$CMD" ]] && continue
 
     for IP in "${CONNECTED_SERVERS[@]}"; do
         echo -e "\n===== $IP ====="
