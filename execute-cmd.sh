@@ -54,8 +54,16 @@ for IP in "${CONNECTED_SERVERS[@]}"; do
 done
 
 # Interactive command execution
-echo -e "\n[INFO] Enter commands to run on all servers. Press Ctrl+D to exit."
+trap 'echo -e "\n[INFO] Exiting..."; break_loop=true' SIGINT
+
+echo -e "\n[INFO] Enter commands to run on all servers. Press Ctrl+C or Ctrl+D to exit."
+break_loop=false
+
 while true; do
+    if [[ "$break_loop" == true ]]; then
+        break
+    fi
+
     echo -n "> "
     if ! IFS= read -r CMD; then
         break  # Exit on Ctrl+D
