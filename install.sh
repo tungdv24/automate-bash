@@ -13,7 +13,8 @@ while true; do
   echo "6) Firewall manager"
   echo "7) Execute command on multiple servers"
   echo "8) Sequential SSH sessions"
-  echo "9) Exit"
+  echo "9) Network Checker"
+  echo "10) Exit"
   echo "============================"
   read -p "Enter your choice: " choice
 
@@ -116,7 +117,7 @@ while true; do
       extend_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/network-check.sh | sudo bash"
       echo -e "Executing:\n$extend_cmd\n"
       eval $extend_cmd
-      read -p "Network check completed. Press ENTER to continue..."
+      read -p "✅ Network check completed. Press ENTER to continue..."
       ;;
     10)
       echo "Bye!"
