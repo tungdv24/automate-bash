@@ -112,6 +112,13 @@ while true; do
       read -p "✅ Sequential SSH sessions complete. Press ENTER to continue..."
       ;;
     9)
+      echo -e "Starting network checks"
+      extend_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/network-check.sh | sudo bash"
+      echo -e "Executing:\n$extend_cmd\n"
+      eval $extend_cmd
+      read -p "Network check completed. Press ENTER to continue..."
+      ;;
+    10)
       echo "Bye!"
       exit 0
       ;;
