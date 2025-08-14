@@ -56,18 +56,29 @@ echo "[*] Configuring passwordless sudo"
 echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$USERNAME"
 chmod 440 "/etc/sudoers.d/$USERNAME"
 
-echo "[*] Configuring sshd_config AllowUsers"
-if ! grep -qE "^AllowUsers" /etc/ssh/sshd_config; then
-    echo "AllowUsers $USERNAME" >> /etc/ssh/sshd_config
-    echo "[*] Added AllowUsers line"
-else
-    if ! grep -qE "AllowUsers.*\b$USERNAME\b" /etc/ssh/sshd_config; then
-        sed -i "/^AllowUsers/ s/$/ $USERNAME/" /etc/ssh/sshd_config
-        echo "[*] Appended $USERNAME to AllowUsers"
-    else
+echo "[*] Checking sshd_config AllowUsers setting..."
+
+# Get all AllowUsers entries (if any)
+ALLOW_LINES=$(grep -E "^AllowUsers" /etc/ssh/sshd_config || true)
+
+if [[ -n "$ALLOW_LINES" ]]; then
+    # Extract all users from all AllowUsers lines
+    CURRENT_USERS=$(echo "$ALLOW_LINES" | awk '{$1=""; print $0}' | tr -s ' ' | tr '\n' ' ' | sed 's/^ //;s/ $//')
+
+    echo "[*] Currently allowed users: $CURRENT_USERS"
+
+    # Check if our user is already in the list
+    if echo "$CURRENT_USERS" | grep -qw "$USERNAME"; then
         echo "[*] $USERNAME already present in AllowUsers"
+    else
+        # Append user to the LAST AllowUsers line
+        sed -i "\$aAllowUsers $USERNAME" /etc/ssh/sshd_config
+        echo "[*] Added $USERNAME to AllowUsers"
     fi
+else
+    echo "[*] No AllowUsers restriction found — skipping changes"
 fi
+
 
 echo "[*] Restarting SSH service"
 if systemctl is-active sshd &>/dev/null; then
