@@ -1,5 +1,25 @@
 #!/bin/bash
 
+if command -v traceroute >/dev/null 2>&1; then
+    echo "[INFO] traceroute is already installed. Skipping installation."
+else
+    if [ -f /etc/debian_version ]; then
+        echo "[INFO] Detected Debian/Ubuntu"
+        sudo apt-get update -y
+        sudo apt-get install -y traceroute
+    elif [ -f /etc/redhat-release ]; then
+        echo "[INFO] Detected CentOS/RHEL/Fedora"
+        if command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y traceroute
+        else
+            sudo yum install -y traceroute
+        fi
+    else
+        echo "[ERROR] Unsupported OS. Could not install traceroute."
+    fi
+    echo "[SUCCESS] traceroute installed successfully."
+fi
+
 # ===== Get Current Public IP =====
 CURRENT_IP=$(curl -s ifconfig.me || curl -s icanhazip.com)
 echo "CurrentIP (Public): $CURRENT_IP"
