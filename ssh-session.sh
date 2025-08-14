@@ -2,6 +2,32 @@
 
 clear
 
+if command -v sshpass >/dev/null 2>&1; then
+    echo "[INFO] sshpass is already installed. Skipping installation."
+else
+    # Detect OS and install if missing
+    if [ -f /etc/debian_version ]; then
+        echo "[INFO] Detected Debian/Ubuntu"
+        sudo apt-get update -y
+        sudo apt-get install -y sshpass
+
+    elif [ -f /etc/redhat-release ]; then
+        echo "[INFO] Detected CentOS/RHEL/Fedora"
+        if command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y epel-release
+            sudo dnf install -y sshpass
+        else
+            sudo yum install -y epel-release
+            sudo yum install -y sshpass
+        fi
+
+    else
+        echo "[ERROR] Unsupported OS. Could not install sshpass."
+    fi
+
+    echo "[SUCCESS] sshpass installed successfully."
+fi
+
 # Temporary password file
 PASS_FILE="$(mktemp)"
 trap 'rm -f "$PASS_FILE"; echo -e "\nCtrl+C received — exiting."; exit 130' INT TERM
