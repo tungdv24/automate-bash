@@ -56,21 +56,22 @@ while true; do
       read -p "✅ SSH Monitor setup complete. Press ENTER to continue..."
       ;;
     3)
-      read -p "Enter Zabbix Server IP: " server_ip
-      read -p "Enter Zabbix Version (e.g., 7.0): " zbx_version
-      read -p "Enter Agent Ver (optional, e.g., 2): " agent_ver
+      ZBX_SERVER="192.168.10.196"
+      ZBX_VERSION="7.0"
+      ZBX_AGENT="1"
 
-      if [[ -z "$server_ip" || -z "$zbx_version" ]]; then
-        echo "❌ Server IP or Zabbix version is missing. Aborting."
-        read -p "Press ENTER to continue..."
-        continue
-      fi
+      # Prompt with defaults in square brackets
+      read -p "Enter Zabbix Server IP [${ZBX_SERVER}]: " server_ip
+      read -p "Enter Zabbix Version (e.g., 7.0) [${ZBX_VERSION}]: " zbx_version
+      read -p "Enter Agent Ver (e.g., 1 or 2) [${ZBX_AGENT}]: " agent_ver
 
-      if [[ -z "$agent_ver" ]]; then
-        zabbix_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/zabbix-agent.sh | bash -s -- --server $server_ip --version $zbx_version"
-      else
-        zabbix_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/zabbix-agent.sh | bash -s -- --server $server_ip --version $zbx_version --ver $agent_ver"
-      fi
+      # Use defaults if user presses ENTER
+      server_ip="${server_ip:-$ZBX_SERVER}"
+      zbx_version="${zbx_version:-$ZBX_VERSION}"
+      agent_ver="${agent_ver:-$ZBX_AGENT}"
+
+      # Build the command
+      zabbix_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/zabbix-agent.sh | bash -s -- --server $server_ip --version $zbx_version --ver $agent_ver"
 
       echo -e "\nExecuting:\n$zabbix_cmd\n"
       eval $zabbix_cmd
