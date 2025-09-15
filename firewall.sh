@@ -76,15 +76,28 @@ add_rules() {
     read -p "Enter ports (comma-separated, can include ranges like 80,100-110,443): " PORTS
     read -p "Enter IPs or CIDRs (comma-separated, leave empty for all): " IPS
 
+    echo "Choose protocol:"
+    echo "1) TCP"
+    echo "2) UDP"
+    echo "3) BOTH"
+    read -p "Select [1-3]: " PROTO_CHOICE
+
+    case "$PROTO_CHOICE" in
+        1) PROTO="tcp" ;;
+        2) PROTO="udp" ;;
+        3) PROTO="both" ;;
+        *) echo "Invalid choice, defaulting to TCP."; PROTO="tcp" ;;
+    esac
+
     IFS=',' read -ra PORT_LIST <<< "$PORTS"
     IFS=',' read -ra IP_LIST <<< "${IPS:-}"
 
     for PORT in "${PORT_LIST[@]}"; do
         if [[ "${#IP_LIST[@]}" -eq 0 ]]; then
-            apply_add_rule "$PORT" "" "$ACTION"
+            apply_add_rule "$PORT" "" "$ACTION" "$PROTO"
         else
             for IP in "${IP_LIST[@]}"; do
-                apply_add_rule "$PORT" "$IP" "$ACTION"
+                apply_add_rule "$PORT" "$IP" "$ACTION" "$PROTO"
             done
         fi
     done
