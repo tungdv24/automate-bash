@@ -11,7 +11,7 @@ CHAT_ID="$2"
 THREAD_ID="$3"
 
 SCRIPT_URL="https://raw.githubusercontent.com/tungdv24/automate-bash/main/ssh-login.sh"
-DEST_DIR="/etc/pam.script"
+DEST_DIR="/usr/local/sbin"
 DEST_SCRIPT="$DEST_DIR/ssh-login.sh"
 
 # === Detect SELinux on CentOS/RHEL and abort if not disabled ===
