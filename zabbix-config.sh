@@ -17,7 +17,7 @@ detect_zabbix_agent() {
 }
 
 # Run detection
-detect_zabbix_agent
+
 
 # Define temp working directory
 TMP_DIR="/tmp/zabbix-configs"
