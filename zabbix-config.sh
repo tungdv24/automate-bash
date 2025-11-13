@@ -5,10 +5,10 @@ set -e
 
 # Function to detect Zabbix Agent version
 detect_zabbix_agent() {
-    if systemctl list-units --type=service | grep -q "^zabbix-agent2.service"; then
+    if systemctl status zabbix-agent2 >/dev/null 2>&1; then
         echo "❌ Detected Zabbix Agent 2. This script is only for Zabbix Agent 1."
         exit 1
-    elif systemctl list-units --type=service | grep -q "^zabbix-agent.service"; then
+    elif systemctl status zabbix-agent >/dev/null 2>&1; then
         echo "✅ Detected Zabbix Agent 1. Proceeding..."
     else
         echo "❌ No Zabbix Agent service found. Exiting."
@@ -17,7 +17,7 @@ detect_zabbix_agent() {
 }
 
 # Run detection
-
+detect_zabbix_agent
 
 # Define temp working directory
 TMP_DIR="/tmp/zabbix-configs"
