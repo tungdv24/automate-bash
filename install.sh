@@ -3,7 +3,7 @@
 while true; do
   clear
   echo "============================"
-  echo " Auto Admin Script v2.4 "
+  echo " Auto Admin Script v2.5 "
   echo "============================"
   echo "1) Add sudo user with SSH key"
   echo "2) Add SSH monitor alert"
@@ -14,7 +14,8 @@ while true; do
   echo "7) Execute command on multiple servers"
   echo "8) Sequential SSH sessions"
   echo "9) Network Checker"
-  echo "10) Exit"
+  echo "10) Setup Data Disk (/data)"
+  echo "11) Exit"
   echo "============================"
   read -p "Enter your choice: " choice
 
@@ -120,6 +121,18 @@ while true; do
       read -p "✅ Network check completed. Press ENTER to continue..."
       ;;
     10)
+      echo -e "\nSetting up /data disk...\n"
+      SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+      if [[ -f "$SCRIPT_DIR/setup-data-disk.sh" ]]; then
+        data_disk_cmd="sudo bash \"$SCRIPT_DIR/setup-data-disk.sh\""
+      else
+        data_disk_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/setup-data-disk.sh | sudo bash"
+      fi
+      echo -e "Executing:\n$data_disk_cmd\n"
+      eval $data_disk_cmd
+      read -p "✅ /data disk setup completed. Press ENTER to continue..."
+      ;;
+    11)
       echo "Bye!"
       exit 0
       ;;
