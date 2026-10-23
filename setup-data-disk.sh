@@ -3,8 +3,9 @@ set -euo pipefail
 
 # ==============================================================================
 # Script: setup-data-disk.sh
-# Purpose: Scan for secondary disk (/dev/sdb), verify if empty, partition,
-#          format with ext4, mount to /data, and persist to /etc/fstab with UUID.
+# Purpose: Scan for secondary disk (e.g., /dev/sdb, /dev/vdb, /dev/nvme1n1),
+#          prevent touching root disk, partition (GPT), format (ext4/xfs),
+#          mount, and persist to /etc/fstab with UUID.
 # ==============================================================================
 
 DISK="/dev/sdb"
@@ -15,11 +16,11 @@ FORCE=0
 # Parse optional arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --disk)
+        --disk|-d)
             DISK="$2"
             shift 2
             ;;
-        --mount)
+        --mount|-m)
             MOUNT_POINT="$2"
             shift 2
             ;;
@@ -35,11 +36,11 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: sudo $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --disk <dev>    Target disk (default: /dev/sdb)"
-            echo "  --mount <path>  Mount point directory (default: /data)"
-            echo "  --fs <type>     Filesystem type: ext4 or xfs (default: ext4)"
-            echo "  -f, --force     Force wipe and reformat even if not empty"
-            echo "  -h, --help      Show this help message"
+            echo "  -d, --disk <dev>    Target disk (default: /dev/sdb, e.g. /dev/vdb, /dev/nvme1n1)"
+            echo "  -m, --mount <path>  Mount point directory (default: /data)"
+            echo "      --fs <type>     Filesystem type: ext4 or xfs (default: ext4)"
+            echo "  -f, --force         Force wipe and reformat even if not empty"
+            echo "  -h, --help          Show this help message"
             exit 0
             ;;
         *)
@@ -62,13 +63,19 @@ echo "=========================================================="
 echo "Target Disk : $DISK"
 echo "Mount Point : $MOUNT_POINT"
 echo "Filesystem  : $FS_TYPE"
+echo "Force Wipe  : $([[ $FORCE -eq 1 ]] && echo 'YES' || echo 'NO')"
 echo "=========================================================="
 
-# 1. Rescan SCSI buses to discover newly attached disks
-echo ">>> [1/7] Rescanning SCSI buses for newly attached disks..."
+# 1. Rescan SCSI buses and block devices to discover newly attached disks
+echo ">>> [1/7] Rescanning storage buses for newly attached disks..."
 for host in /sys/class/scsi_host/*; do
     if [[ -d "$host" ]]; then
         echo "- - -" > "$host/scan" 2>/dev/null || true
+    fi
+done
+for rescan_dev in /sys/block/*/device/rescan; do
+    if [[ -f "$rescan_dev" ]]; then
+        echo 1 > "$rescan_dev" 2>/dev/null || true
     fi
 done
 udevadm settle 2>/dev/null || true
@@ -78,14 +85,37 @@ if [[ ! -b "$DISK" ]]; then
     echo "❌ Error: Block device '$DISK' was not found."
     if [[ -b "/dev/vdb" ]]; then
         echo "ℹ️  Found '/dev/vdb' instead (VirtIO block device)."
-        echo "   Run with: sudo $0 --disk /dev/vdb"
+        echo "   Re-run with: sudo $0 --disk /dev/vdb"
+    elif [[ -b "/dev/nvme1n1" ]]; then
+        echo "ℹ️  Found '/dev/nvme1n1' instead (NVMe block device)."
+        echo "   Re-run with: sudo $0 --disk /dev/nvme1n1"
     fi
     echo "   Please attach the secondary disk to the VM and try again."
     exit 1
 fi
 
+# Safety check: Protect Root Disk from accidental wipe
+ROOT_DEV=$(findmnt -n -o SOURCE / 2>/dev/null || true)
+ROOT_PARENT=$(lsblk -no PKNAME "$ROOT_DEV" 2>/dev/null | head -n1 || true)
+[[ -z "$ROOT_PARENT" && -b "$ROOT_DEV" ]] && ROOT_PARENT=$(basename "$ROOT_DEV")
+
+DISK_BASE=$(basename "$DISK")
+if [[ -n "$ROOT_PARENT" && "$DISK_BASE" == "$ROOT_PARENT"* ]]; then
+    echo "❌ CRITICAL SAFETY ERROR: Disk '$DISK' contains the root (/) filesystem!"
+    echo "   Refusing to partition or format the system root disk."
+    exit 1
+fi
+
 DISK_SIZE=$(lsblk -dn -o SIZE "$DISK" 2>/dev/null || echo "Unknown")
 echo "✅ Found disk: $DISK (Size: $DISK_SIZE)"
+
+# Determine partition naming scheme (e.g. /dev/sdb1 vs /dev/nvme0n1p1)
+if [[ "$DISK" =~ [0-9]$ ]]; then
+    PART_PREFIX="p"
+else
+    PART_PREFIX=""
+fi
+PART1="${DISK}${PART_PREFIX}1"
 
 # 3. Check if mount point or disk is already mounted
 echo ">>> [2/7] Checking mount status..."
@@ -141,8 +171,7 @@ if [[ $PART_COUNT -gt 0 || -n "$DISK_FSTYPE" || -n "$BLK_ID_OUT" ]]; then
         udevadm settle 2>/dev/null || true
         sleep 1
     else
-        # If partition 1 exists with a filesystem, preserve data and mount it safely
-        PART1="${DISK}1"
+        # If partition 1 exists with a filesystem, preserve data and mount safely
         if [[ -b "$PART1" ]]; then
             PART1_FSTYPE=$(lsblk -no FSTYPE "$PART1" 2>/dev/null || true)
             if [[ -n "$PART1_FSTYPE" ]]; then
@@ -155,7 +184,7 @@ if [[ $PART_COUNT -gt 0 || -n "$DISK_FSTYPE" || -n "$BLK_ID_OUT" ]]; then
 
         if [[ -z "$TARGET_PART" ]]; then
             echo "❌ Aborting: Disk contains existing data or partitions."
-            echo "   To overwrite and reformat the entire disk, re-run with: sudo $0 --force"
+            echo "   To overwrite and reformat the entire disk, re-run with: sudo $0 --disk $DISK --force"
             exit 1
         fi
     fi
@@ -176,9 +205,8 @@ if [[ -z "$TARGET_PART" ]]; then
     udevadm settle 2>/dev/null || true
     sleep 1
 
-    TARGET_PART="${DISK}1"
+    TARGET_PART="$PART1"
     if [[ ! -b "$TARGET_PART" ]]; then
-        # Try blockdev reread
         blockdev --rereadpt "$DISK" 2>/dev/null || true
         sleep 1
     fi
@@ -190,17 +218,34 @@ if [[ -z "$TARGET_PART" ]]; then
 
     echo "✅ Created partition: $TARGET_PART"
 
-    # 6. Format the partition
-    echo ">>> [5/7] Formatting $TARGET_PART with $FS_TYPE..."
+    # Ensure formatting tools are available
     case "$FS_TYPE" in
         ext4|ext3)
+            if ! command -v mkfs.ext4 &>/dev/null; then
+                echo ">>> Installing e2fsprogs..."
+                if command -v apt-get &>/dev/null; then
+                    apt-get install -y -qq e2fsprogs
+                else
+                    yum install -y -q e2fsprogs || dnf install -y -q e2fsprogs
+                fi
+            fi
+            echo ">>> [5/7] Formatting $TARGET_PART with ext4..."
             mkfs.ext4 -F -q "$TARGET_PART"
             ;;
         xfs)
+            if ! command -v mkfs.xfs &>/dev/null; then
+                echo ">>> Installing xfsprogs..."
+                if command -v apt-get &>/dev/null; then
+                    apt-get install -y -qq xfsprogs
+                else
+                    yum install -y -q xfsprogs || dnf install -y -q xfsprogs
+                fi
+            fi
+            echo ">>> [5/7] Formatting $TARGET_PART with xfs..."
             mkfs.xfs -f -q "$TARGET_PART"
             ;;
         *)
-            echo "❌ Unsupported filesystem: $FS_TYPE. Defaulting to ext4."
+            echo "⚠️  Unsupported filesystem: $FS_TYPE. Defaulting to ext4."
             mkfs.ext4 -F -q "$TARGET_PART"
             FS_TYPE="ext4"
             ;;
@@ -211,14 +256,14 @@ else
     echo ">>> [5/7] Skipping format to preserve existing filesystem..."
 fi
 
-# 7. Create mount point and mount
+# 6. Create mount point and mount
 echo ">>> [6/7] Creating mount point '$MOUNT_POINT' and mounting..."
 mkdir -p "$MOUNT_POINT"
 mount "$TARGET_PART" "$MOUNT_POINT"
 chmod 755 "$MOUNT_POINT"
 echo "✅ Successfully mounted $TARGET_PART to $MOUNT_POINT"
 
-# 8. Add entry to /etc/fstab using UUID
+# 7. Add entry to /etc/fstab using UUID
 echo ">>> [7/7] Configuring /etc/fstab with UUID..."
 udevadm settle 2>/dev/null || true
 UUID=$(blkid -s UUID -o value "$TARGET_PART" 2>/dev/null || lsblk -no UUID "$TARGET_PART" 2>/dev/null || true)

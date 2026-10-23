@@ -1,23 +1,47 @@
 #!/bin/bash
+set -u
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+REPO_BASE_URL="https://raw.githubusercontent.com/tungdv24/automate-bash/main"
+
+# Helper function to run script locally if available, or fetch from GitHub
+run_subscript() {
+    local script_name="$1"
+    local run_as_sudo="$2"
+    shift 2
+
+    local local_file="$SCRIPT_DIR/$script_name"
+    local runner=""
+    [[ "$run_as_sudo" == "true" ]] && runner="sudo"
+
+    if [[ -f "$local_file" ]]; then
+        echo -e "\n📁 Running local script: $local_file\n"
+        $runner bash "$local_file" "$@"
+    else
+        local remote_url="$REPO_BASE_URL/$script_name"
+        echo -e "\n🌐 Fetching and running from GitHub: $remote_url\n"
+        $runner bash <(curl -fsSL "$remote_url") "$@"
+    fi
+}
 
 while true; do
   clear
-  echo "============================"
-  echo " Auto Admin Script v2.5 "
-  echo "============================"
-  echo "1) Add sudo user with SSH key"
-  echo "2) Add SSH monitor alert"
-  echo "3) Install Zabbix Agent"
-  echo "4) Install Zabbix Config"
-  echo "5) Extend Disk"
-  echo "6) Firewall manager"
-  echo "7) Execute command on multiple servers"
-  echo "8) Sequential SSH sessions"
-  echo "9) Network Checker"
-  echo "10) Setup Data Disk (/data)"
-  echo "11) Exit"
-  echo "============================"
-  read -p "Enter your choice: " choice
+  echo "=========================================================="
+  echo "               Automate Bash Admin Toolkit                "
+  echo "=========================================================="
+  echo " 1)  Add sudo user with SSH key"
+  echo " 2)  Add SSH monitor Telegram alert"
+  echo " 3)  Install Zabbix Agent"
+  echo " 4)  Install Zabbix Config"
+  echo " 5)  Extend Disk & Filesystem (growpart/LVM)"
+  echo " 6)  Firewall Manager (UFW / Firewalld)"
+  echo " 7)  Execute command on multiple servers"
+  echo " 8)  Sequential SSH sessions"
+  echo " 9)  Network & Ping/Traceroute Checker"
+  echo " 10) Setup Data Disk (/data)"
+  echo " 11) Exit"
+  echo "=========================================================="
+  read -p "Select an option [1-11]: " choice
 
   case $choice in
     1)
@@ -31,11 +55,10 @@ while true; do
         continue
       fi
 
-      curl_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/add_sudo_user.sh | bash -s -- --user $username --key \"$ssh_key\""
-      echo -e "\nExecuting:\n$curl_cmd\n"
-      eval $curl_cmd
-      read -p "✅ Done. Press ENTER to continue..."
+      run_subscript "add_sudo_user.sh" "true" --user "$username" --key "$ssh_key"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     2)
       read -p "Enter Bot Token: " bot_token
       read -p "Enter Chat ID: " chat_id
@@ -47,97 +70,73 @@ while true; do
         continue
       fi
 
-      if [[ -z "$thread_id" ]]; then
-        monitor_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/setup-pam-monitor.sh) \"$bot_token\" \"$chat_id\""
+      if [[ -n "$thread_id" ]]; then
+        run_subscript "setup-pam-monitor.sh" "true" "$bot_token" "$chat_id" "$thread_id"
       else
-        monitor_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/setup-pam-monitor.sh) \"$bot_token\" \"$chat_id\" \"$thread_id\""
+        run_subscript "setup-pam-monitor.sh" "true" "$bot_token" "$chat_id"
       fi
-
-      echo -e "\nExecuting:\n$monitor_cmd\n"
-      eval $monitor_cmd
-      read -p "✅ SSH Monitor setup complete. Press ENTER to continue..."
+      read -p "Press ENTER to return to menu..."
       ;;
+
     3)
       ZBX_SERVER="192.168.10.196"
       ZBX_VERSION="7.0"
       ZBX_AGENT="1"
 
-      # Prompt with defaults in square brackets
-      read -p "Enter Zabbix Server IP [${ZBX_SERVER}]: " server_ip
-      read -p "Enter Zabbix Version (e.g., 7.0) [${ZBX_VERSION}]: " zbx_version
-      read -p "Enter Agent Ver (e.g., 1 or 2) [${ZBX_AGENT}]: " agent_ver
+      read -p "Enter Zabbix Server IP [$ZBX_SERVER]: " input_server
+      read -p "Enter Zabbix Version (e.g., 7.0, 6.4) [$ZBX_VERSION]: " input_ver
+      read -p "Enter Agent Ver (1 or 2) [$ZBX_AGENT]: " input_agent
 
-      # Use defaults if user presses ENTER
-      server_ip="${server_ip:-$ZBX_SERVER}"
-      zbx_version="${zbx_version:-$ZBX_VERSION}"
-      agent_ver="${agent_ver:-$ZBX_AGENT}"
+      server_ip="${input_server:-$ZBX_SERVER}"
+      zbx_version="${input_ver:-$ZBX_VERSION}"
+      agent_ver="${input_agent:-$ZBX_AGENT}"
 
-      # Build the command
-      zabbix_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/zabbix-agent.sh | bash -s -- --server $server_ip --version $zbx_version --ver $agent_ver"
-
-      echo -e "\nExecuting:\n$zabbix_cmd\n"
-      eval $zabbix_cmd
-      read -p "✅ Zabbix Agent installation complete. Press ENTER to continue..."
+      run_subscript "zabbix-agent.sh" "true" --server "$server_ip" --version "$zbx_version" --ver "$agent_ver"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     4)
-      echo -e "\nInstalling Zabbix Config...\n"
-      zbx_cfg_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/zabbix-config.sh)"
-      echo -e "Executing:\n$zbx_cfg_cmd\n"
-      eval $zbx_cfg_cmd
-      read -p "✅ Zabbix Config installed. Press ENTER to continue..."
+      run_subscript "zabbix-config.sh" "true"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     5)
-      echo -e "\nExtending disk...\n"
-      extend_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/extend-disk.sh | sudo bash"
-      echo -e "Executing:\n$extend_cmd\n"
-      eval $extend_cmd
-      read -p "✅ Disk extension complete. Press ENTER to continue..."
+      run_subscript "extend-disk.sh" "true"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     6)
-      extend_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/firewall.sh) no-menu"
-      echo -e "Executing:\n$extend_cmd\n"
-      eval $extend_cmd
-      read -p "✅ Firewall configuration completed. Press ENTER to continue..."
+      run_subscript "firewall.sh" "true"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     7)
-      echo -e "\nExecuting command on multiple servers...\n"
-      multi_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/execute-cmd.sh)"
-      echo -e "Executing:\n$multi_cmd\n"
-      eval $multi_cmd
-      read -p "✅ Multiple server command execution complete. Press ENTER to continue..."
+      run_subscript "execute-cmd.sh" "false"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     8)
-      echo -e "\nStarting sequential SSH sessions...\n"
-      seq_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/ssh-session.sh)"
-      echo -e "Executing:\n$seq_cmd\n"
-      eval $seq_cmd
-      read -p "✅ Sequential SSH sessions complete. Press ENTER to continue..."
+      run_subscript "ssh-session.sh" "false"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     9)
-      echo -e "Starting network checks"
-      extend_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/network-check.sh | sudo bash"
-      echo -e "Executing:\n$extend_cmd\n"
-      eval $extend_cmd
-      read -p "✅ Network check completed. Press ENTER to continue..."
+      run_subscript "network-check.sh" "true"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     10)
-      echo -e "\nSetting up /data disk...\n"
-      SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-      if [[ -f "$SCRIPT_DIR/setup-data-disk.sh" ]]; then
-        data_disk_cmd="sudo bash \"$SCRIPT_DIR/setup-data-disk.sh\""
-      else
-        data_disk_cmd="curl -sSL https://raw.githubusercontent.com/tungdv24/automate-bash/main/setup-data-disk.sh | sudo bash"
-      fi
-      echo -e "Executing:\n$data_disk_cmd\n"
-      eval $data_disk_cmd
-      read -p "✅ /data disk setup completed. Press ENTER to continue..."
+      run_subscript "setup-data-disk.sh" "true"
+      read -p "Press ENTER to return to menu..."
       ;;
+
     11)
-      echo "Bye!"
+      echo "Goodbye!"
       exit 0
       ;;
+
     *)
-      echo "Invalid choice."
+      echo "❌ Invalid choice: $choice"
       read -p "Press ENTER to try again..."
       ;;
   esac
