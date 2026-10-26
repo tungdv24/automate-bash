@@ -1,7 +1,14 @@
 #!/bin/bash
 set -u
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+trap 'rm -f /tmp/automate.* 2>/dev/null' EXIT INT TERM
+
+# Reopen stdin from terminal if script was piped (e.g., curl ... | bash)
+if [[ ! -t 0 && -r /dev/tty ]]; then
+    exec < /dev/tty
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" &>/dev/null && pwd)"
 REPO_BASE_URL="https://raw.githubusercontent.com/tungdv24/automate-bash/main"
 
 # Helper function to run script locally if available, or fetch from GitHub
@@ -12,7 +19,9 @@ run_subscript() {
 
     local local_file="$SCRIPT_DIR/$script_name"
     local runner=""
-    [[ "$run_as_sudo" == "true" ]] && runner="sudo"
+    if [[ "$run_as_sudo" == "true" && ${EUID:-$(id -u)} -ne 0 ]]; then
+        runner="sudo"
+    fi
 
     if [[ -f "$local_file" ]]; then
         echo -e "\n📁 Running local script: $local_file\n"
@@ -20,7 +29,22 @@ run_subscript() {
     else
         local remote_url="$REPO_BASE_URL/$script_name"
         echo -e "\n🌐 Fetching and running from GitHub: $remote_url\n"
-        $runner bash <(curl -fsSL "$remote_url") "$@"
+        local tmp_file
+        tmp_file=$(mktemp /tmp/automate.XXXXXX 2>/dev/null || mktemp) || {
+            echo "❌ Failed to create temporary file."
+            return 1
+        }
+        if curl -fsSL "$remote_url" -o "$tmp_file"; then
+            chmod 755 "$tmp_file"
+            $runner bash "$tmp_file" "$@"
+            local exit_code=$?
+            rm -f "$tmp_file"
+            return $exit_code
+        else
+            echo "❌ Failed to download script from $remote_url"
+            rm -f "$tmp_file" 2>/dev/null || true
+            return 1
+        fi
     fi
 }
 
