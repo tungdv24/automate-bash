@@ -110,20 +110,26 @@ install_agent_debian_ubuntu() {
 
     if [[ "$OS_FAMILY" == "ubuntu" ]]; then
         case "$CODENAME" in
-            focal)  DIST_TAG="ubuntu20.04" ;;
-            jammy)  DIST_TAG="ubuntu22.04" ;;
-            noble)  DIST_TAG="ubuntu24.04" ;;
-            bionic) DIST_TAG="ubuntu18.04" ;;
+            focal)    DIST_TAG="ubuntu20.04" ;;
+            jammy)    DIST_TAG="ubuntu22.04" ;;
+            noble)    DIST_TAG="ubuntu24.04" ;;
+            resolute) DIST_TAG="ubuntu26.04" ;;
+            bionic)   DIST_TAG="ubuntu18.04" ;;
             *)
-                echo "❌ Unsupported Ubuntu version: $CODENAME"
-                exit 1
+                if [[ "${VERSION_ID:-}" =~ ^26\. ]]; then
+                    DIST_TAG="ubuntu26.04"
+                else
+                    echo "❌ Unsupported Ubuntu version: $CODENAME"
+                    exit 1
+                fi
                 ;;
         esac
-        REPO_DEB="zabbix-release_${ZBX_VERSION}-1+${DIST_TAG}_all.deb"
+        REPO_DEB="zabbix-release_latest_${ZBX_VERSION}+${DIST_TAG}_all.deb"
         REPO_URL="https://repo.zabbix.com/zabbix/${ZBX_VERSION}/ubuntu/pool/main/z/zabbix-release/${REPO_DEB}"
 
     elif [[ "$OS_FAMILY" == "debian" ]]; then
         case "$CODENAME" in
+            trixie)   DEB_VER="13" ;;
             bookworm) DEB_VER="12" ;;
             bullseye) DEB_VER="11" ;;
             buster)   DEB_VER="10" ;;
@@ -131,7 +137,7 @@ install_agent_debian_ubuntu() {
                 DEB_VER=$(cut -d. -f1 /etc/debian_version 2>/dev/null || echo "")
                 ;;
         esac
-        REPO_DEB="zabbix-release_${ZBX_VERSION}-1+debian${DEB_VER}_all.deb"
+        REPO_DEB="zabbix-release_latest_${ZBX_VERSION}+debian${DEB_VER}_all.deb"
         REPO_URL="https://repo.zabbix.com/zabbix/${ZBX_VERSION}/debian/pool/main/z/zabbix-release/${REPO_DEB}"
     fi
 
